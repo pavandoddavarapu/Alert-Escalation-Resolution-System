@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MoveInSync Alert Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            padding: 30px;
+        }
+
+        /* ─── HEADER (kept from redesign) ─── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #1e2d40;
+            margin-bottom: 24px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00c8ff;
+            box-shadow: 0 0 12px rgba(0,200,255,0.4), 0 0 24px rgba(0,200,255,0.25);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 8px rgba(0,200,255,0.25), 0 0 16px rgba(0,200,255,0.25); }
+            50% { box-shadow: 0 0 16px #00c8ff, 0 0 32px rgba(0,200,255,0.25); }
+        }
+
+        .brand {
+            font-family: 'Syne', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        .brand span { color: #00c8ff; }
+
+        .header-meta {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #4a6278;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        /* ─── CHART (kept from redesign, small) ─── */
+        .chart-section {
+            margin-bottom: 30px;
+        }
+
+        .chart-section h2 {
+            font-size: 16px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }
+
+        .chart-wrap {
+            background: #111827;
+            border-radius: 10px;
+            padding: 15px;
+            max-width: 420px;
+        }
+
+        .chart-inner {
+            position: relative;
+            height: 140px;
+        }
+
+        /* ─── ORIGINAL styles ─── */
+
+        h3 {
+            color: #94a3b8;
+            margin: 20px 0 10px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 30px;
+            border-collapse: collapse;
+            background: #111827;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            text-align: center;
+        }
+
+        th { background: #1f2937; }
+
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            background: #1f2937;
+            border: 1px solid #333;
+            color: white;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 14px;
+            background: #22c55e;
+            border: none;
+            cursor: pointer;
+            color: white;
+            border-radius: 5px;
+        }
+
+        button:hover { background: #16a34a; }
+
+        .critical { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .info { color: lightgreen; font-weight: bold; }
+    </style>
+</head>
+
+<body>
+
+<!-- HEADER (redesign) -->
+<div class="header">
+    <div class="header-left">
+        <div class="logo-dot"></div>
+        <div class="brand">MoveIn<span>Sync</span></div>
+    </div>
+    <div class="header-meta">Alert Intelligence Platform</div>
+</div>
+
+<!-- CHART (redesign, small) -->
+<div class="chart-section">
+    <h2>📊 Alert Analytics</h2>
+    <div class="chart-wrap">
+        <div class="chart-inner">
+            <canvas id="alertChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- CREATE (original) -->
+<h3>Create Alert</h3>
+Driver: <input id="driverId">
+Source: <input id="sourceType">
+Severity:
+<select id="severity">
+    <option>INFO</option>
+    <option>WARNING</option>
+    <option>CRITICAL</option>
+</select>
+Metadata: <input id="metadata">
+<button onclick="createAlert()">Create</button>
+
+<!-- TABLE (original) -->
+<h2 style="color:#38bdf8; margin-top:30px;">🚨 Live Alerts</h2>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Driver</th>
+            <th>Source</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Escalation</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="table"></tbody>
+</table>
+
+<script>
+let chart;
+
+async function loadGraph() {
+    const token = localStorage.getItem("token");
+    try {
+        const res = await fetch("/alerts/stats", {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const data = await res.json();
+
+        if (chart) chart.destroy();
+
+        const ctx = document.getElementById("alertChart");
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Total', 'Open', 'Resolved', 'Auto Closed'],
+                datasets: [{
+                    label: 'Alerts',
+                    data: [
+                        data.total || 0,
+                        data.open || 0,
+                        data.resolved || 0,
+                        data.autoClosed || 0
+                    ],
+                    backgroundColor: [
+                        'rgba(0,200,255,0.5)',
+                        'rgba(255,144,0,0.5)',
+                        'rgba(0,229,160,0.5)',
+                        'rgba(74,98,120,0.5)'
+                    ],
+                    borderColor: [
+                        'rgba(0,200,255,0.9)',
+                        'rgba(255,144,0,0.9)',
+                        'rgba(0,229,160,0.9)',
+                        'rgba(74,98,120,0.9)'
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#4a6278', font: { family: 'IBM Plex Mono', size: 10 } },
+                        grid: { color: '#1e2d40' }
+                    },
+                    y: {
+                        ticks: { color: '#4a6278', font: { family: 'IBM Plex Mono', size: 10 } },
+                        grid: { color: '#1e2d40' },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.log("Graph error", e);
+    }
+}
+
+async function loadAlerts() {
+    const token = localStorage.getItem("token");
+    try {
+        const res = await fetch("/alerts", {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const data = await res.json();
+        const table = document.getElementById("table");
+        table.innerHTML = "";
+
+        data.forEach(a => {
+            table.innerHTML += `
+            <tr>
+                <td>${a.alertId}</td>
+                <td>${a.driverId}</td>
+                <td>${a.sourceType}</td>
+                <td class="${(a.severity || 'INFO').toLowerCase()}">${a.severity || 'INFO'}</td>
+                <td>${a.status}</td>
+                <td>${a.escalationLevel}</td>
+                <td><button onclick="resolveAlert(${a.alertId})">Resolve</button></td>
+            </tr>`;
+        });
+    } catch (err) {
+        console.error("Error loading alerts:", err);
+    }
+}
+
+async function createAlert() {
+    const obj = {
+        driverId: document.getElementById("driverId").value,
+        sourceType: document.getElementById("sourceType").value,
+        severity: document.getElementById("severity").value,
+        metadata: document.getElementById("metadata").value
+    };
+    const token = localStorage.getItem("token");
+    await fetch("/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify(obj)
+    });
+    loadAlerts();
+    loadGraph();
+}
+
+async function resolveAlert(id) {
+    const token = localStorage.getItem("token");
+    await fetch(`/alerts/${id}/resolve`, {
+        method: "PUT",
+        headers: { "Authorization": "Bearer " + token }
+    });
+    loadAlerts();
+    loadGraph();
+}
+
+loadAlerts();
+loadGraph();
+setInterval(() => { loadAlerts(); loadGraph(); }, 4000);
+</script>
+</body>
+</html>

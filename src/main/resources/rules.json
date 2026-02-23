@@ -1,0 +1,8 @@
+{
+  "panic": {
+    "escalate_minutes": 2
+  },
+  "info": {
+    "auto_close_minutes": 5
+  }
+}

@@ -15,7 +15,10 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     // find alerts by status
     List<Alert> findByStatus(String status);
 
-    // 🔥 top drivers with most alerts
+    // top drivers with most alerts
     @Query("SELECT a.driverId, COUNT(a) as total FROM Alert a GROUP BY a.driverId ORDER BY total DESC")
     List<Object[]> findTopDrivers();
+
+    List<Alert> findByDriverIdAndSourceType(String driverId, String sourceType);
+
 }

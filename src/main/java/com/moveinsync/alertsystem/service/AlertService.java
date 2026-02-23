@@ -25,20 +25,22 @@ public class AlertService {
     // ================= CREATE ALERT =================
     public Alert createAlert(Alert alert) {
 
-        alert.setTimestamp(LocalDateTime.now());
-        alert.setStatus("OPEN");
+        // ================= INTELLIGENT COUNT BASED ESCALATION =================
 
-        if(alert.getDriverId() == null || alert.getDriverId().isEmpty()){
-            throw new RuntimeException("DriverId required");
-        }
+List<Alert> previous = alertRepository
+.findByDriverIdAndSourceType(alert.getDriverId(), alert.getSourceType());
 
-        if(alert.getSeverity() == null){
-            alert.setSeverity("INFO");
-        }
+long recentCount = previous.stream()
+.filter(a -> a.getTimestamp() != null &&
+        a.getTimestamp().isAfter(LocalDateTime.now().minusMinutes(60)))
+.count();
 
-        if(alert.getEscalationLevel() == null){
-            alert.setEscalationLevel(0);
-        }
+// example rule: 3 alerts within 60 mins → escalate
+if(recentCount >= 2){   // + current alert = 3
+alert.setEscalationLevel(1);
+alert.setSeverity("CRITICAL");
+System.out.println("Intelligent escalation triggered for driver " + alert.getDriverId());
+}
 
         return alertRepository.save(alert);
     }
